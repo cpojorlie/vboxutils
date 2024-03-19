@@ -99,7 +99,10 @@ class VBoxData:
                 if (section is None) and line.startswith('File created on'):
                     # Will parse this at some point
                     creation_date = line[16:]
-                    self.creation_date = datetime.strptime(creation_date, "%d/%m/%Y @ %H:%M:%S")
+                    try:
+                        self.creation_date = datetime.strptime(creation_date, "%d/%m/%Y @ %H:%M:%S")
+                    except ValueError:
+                        self.creation_date = datetime.strptime(creation_date, "%d/%m/%Y @ %H:%M")
                     self.creation_midnight = self.creation_date.replace(hour=0, minute=0, second=0, microsecond=0)
 
                 if line and (section == 'header'):
