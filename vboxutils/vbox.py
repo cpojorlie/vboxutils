@@ -11,7 +11,7 @@ import json
 import re
 import sys
 import time
-from datetime import datetime
+from datetime import datetime, timedelta
 
 import logging
 logging.basicConfig()
@@ -113,14 +113,14 @@ class VBoxData:
 
                 if line and (section == 'column names'):
                     # To use the columns as field names in named tuples, we need to replace hyphens
-                    self.column_names = [c.replace('-','_') for c in line.split()]
+                    self.column_names = [c.replace('-','_').lower() for c in line.split()]
                     self.column_name_map = dict([k[::-1] for k in enumerate(self.column_names)])
                     assert(self.column_names[1] == 'time')  # We assume this later
                     assert(self.column_names[2] == 'lat')   # We assume this later
                     assert(self.column_names[3] == 'long')  # We assume this later
-                    self.column_names.append('time_of_day') # time converted into secs
+                    #self.column_names.append('time_of_day') # time converted into secs
                     self.column_names.append('datetime')    # absolute time
-                    self.column_names.append('timestamp')   # absolute time in secs
+                    #self.column_names.append('timestamp')   # absolute time in secs
                     self.column_names.append('lat_deg')     # latitude in degrees
                     self.column_names.append('long_deg')    # longitude in degrees
                     VBoxDataTuple = collections.namedtuple('VBoxDataTuple', self.column_names)
@@ -141,18 +141,25 @@ class VBoxData:
                     fields = [float(f) for f in bits]
 
                     # Time, however, looks like a float but is HHMMSS.SS
-                    tstamp = bits[1]
-                    (hrs, mins, secs) = int(tstamp[0:2]), int(tstamp[2:4]), float(tstamp[4:])
+                    #tstamp = bits[1]
+                    tstamp = datetime.strptime(bits[self.column_names.index('time')],'%H%M%S.%f')
+                    #(hrs, mins, secs) = int(tstamp[0:2]), int(tstamp[2:4]), float(tstamp[4:])
                     # Add a new field with the time in seconds from midnight
-                    time_of_day = 3600 * hrs + 60 * mins + secs
-                    fields.append(time_of_day)
+                    #time_of_day = 3600 * hrs + 60 * mins + secs
+                    #fields.append(time_of_day)
                     # We turn it into an absolute timestamp by offsetting the time 
                     # from midnight on the creation date.
-                    midnight_timestamp = time.mktime(self.creation_midnight.timetuple())
-                    absolute_timestamp = midnight_timestamp + time_of_day
-                    absolute_time = datetime.fromtimestamp(absolute_timestamp)
+                    if 'date' in self.column_names:
+                        dstamp = datetime.strptime(str(fields[self.column_names.index('date')]), '%d%m%y.0')
+                        #(year, mon, day) = 2000+int(dstamp[2:]), int(dstamp[2:4]), int(dstamp[0:2])
+                        absolute_time = dstamp + timedelta(hours=tstamp.hour, minutes=tstamp.minute, seconds=tstamp.second, microseconds=tstamp.microsecond)
+                    else:
+                        absolute_time = self.creation_midnight + timedelta(hours=tstamp.hour, minutes=tstamp.minute, seconds=tstamp.second, microseconds=tstamp.microsecond)
+                        #midnight_timestamp = time.mktime(self.creation_midnight.timetuple())
+                    #absolute_timestamp = midnight_timestamp + time_of_day
+                    #absolute_time = datetime.fromtimestamp(absolute_timestamp)
                     fields.append( absolute_time )
-                    fields.append( absolute_timestamp )
+                    #fields.append( absolute_timestamp )
 
                     # And lat and long are in minutes, with west as positive
                     # Convert to conventional degrees as lat_deg and long_deg
@@ -163,8 +170,8 @@ class VBoxData:
                     # We assume that time=000000.00 indicates the start of useful data.
                     # (This comes from an early test file where the first few records
                     # were at 23:59:xx.xxx.)
-                    if fields[1] == 0.0:
-                        self.data = []
+                    #if fields[1] == 0.0:
+                    #    self.data = []
 
                     tup = VBoxDataTuple(*fields)
                     self.data.append(tup)
