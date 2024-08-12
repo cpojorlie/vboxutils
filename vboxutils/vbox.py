@@ -145,7 +145,6 @@ class VBoxData:
 
                     # Convert floats and ints
                     fields = [a(b) for a, b in zip(data_types, bits)]
-                    print(fields)
             
                     # Time, however, looks like a float but is HHMMSS.SS
                     #tstamp = bits[1]
