@@ -145,6 +145,7 @@ class VBoxData:
 
                     # Convert floats and ints
                     fields = [a(b) for a, b in zip(data_types, bits)]
+                    print(fields)
             
                     # Time, however, looks like a float but is HHMMSS.SS
                     #tstamp = bits[1]
@@ -156,11 +157,18 @@ class VBoxData:
                     # We turn it into an absolute timestamp by offsetting the time 
                     # from midnight on the creation date.
                     if 'date' in self.column_names:
-                        try:
-                            dstamp = datetime.strptime(bits[self.column_names.index('date')], '%d%m%y')
-                            last_known_good_dstamp = dstamp
-                        except:
-                            dstamp = last_known_good_dstamp
+                        if data_types[self.column_names.index('date')] == int:
+                            try:
+                                dstamp = datetime.strptime(bits[self.column_names.index('date')], '%d%m%y')
+                                last_known_good_dstamp = dstamp
+                            except:
+                                dstamp = last_known_good_dstamp
+                        else:
+                            try:
+                                dstamp = datetime.strptime(str(int(fields[self.column_names.index('date')])), '%d%m%y')
+                                last_known_good_dstamp = dstamp
+                            except:
+                                dstamp = last_known_good_dstamp
                         #(year, mon, day) = 2000+int(dstamp[2:]), int(dstamp[2:4]), int(dstamp[0:2])
                         absolute_time = dstamp + timedelta(hours=tstamp.hour, minutes=tstamp.minute, seconds=tstamp.second, microseconds=tstamp.microsecond)
                     else:
@@ -314,3 +322,5 @@ class VBoxData:
 
     def write_geojson(self, outfile=sys.stdout):
         outfile.write(self.to_json())
+
+
