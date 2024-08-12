@@ -85,6 +85,7 @@ class VBoxData:
         section = None
         # How many fields on a complete data input line?
         expected_fields = None
+        data_types = None
         for raw_line in from_vbo_file:
             line = raw_line.strip()
 
@@ -127,19 +128,24 @@ class VBoxData:
 
                 if line and (section == 'data'):
                     bits = line.split()
-                    # Check we got the number of fields we expected - the last line
-                    # can sometimes be truncated.
+                    
+                    # Set number of expected fields
                     if expected_fields is None: 
                         expected_fields=len(bits)
+
+                    # Determine data types of each column - to speed up import
+                    if data_types is None:
+                        data_types = [float if '.' in f else int for f in bits]
+                        
+                    # Check we got the number of fields we expected - the last line
+                    # can sometimes be truncated.
                     if len(bits) != expected_fields:
                         log.warning('Skipping a data line which does not include %s fields', expected_fields)
                         continue
 
-                    # I think data fields are always numbers, but in different formats
-                    # We'll treat them as floats for now
-
-                    fields = [float(f) for f in bits]
-
+                    # Convert floats and ints
+                    fields = [a(b) for a, b in zip(data_types, bits)]
+            
                     # Time, however, looks like a float but is HHMMSS.SS
                     #tstamp = bits[1]
                     tstamp = datetime.strptime(bits[self.column_names.index('time')],'%H%M%S.%f')
@@ -150,7 +156,11 @@ class VBoxData:
                     # We turn it into an absolute timestamp by offsetting the time 
                     # from midnight on the creation date.
                     if 'date' in self.column_names:
-                        dstamp = datetime.strptime(str(fields[self.column_names.index('date')]), '%d%m%y.0')
+                        try:
+                            dstamp = datetime.strptime(bits[self.column_names.index('date')], '%d%m%y')
+                            last_known_good_dstamp = dstamp
+                        except:
+                            dstamp = last_known_good_dstamp
                         #(year, mon, day) = 2000+int(dstamp[2:]), int(dstamp[2:4]), int(dstamp[0:2])
                         absolute_time = dstamp + timedelta(hours=tstamp.hour, minutes=tstamp.minute, seconds=tstamp.second, microseconds=tstamp.microsecond)
                     else:
@@ -304,5 +314,3 @@ class VBoxData:
 
     def write_geojson(self, outfile=sys.stdout):
         outfile.write(self.to_json())
-
-
